@@ -449,6 +449,7 @@
             this.pictureBox10.TabIndex = 12;
             this.pictureBox10.TabStop = false;
             this.toolTip1.SetToolTip(this.pictureBox10, "Вызов справки");
+            this.pictureBox10.Click += new System.EventHandler(this.вызовСправкиToolStripMenuItem_Click);
             // 
             // pictureBox11
             // 
@@ -461,6 +462,7 @@
             this.pictureBox11.TabIndex = 13;
             this.pictureBox11.TabStop = false;
             this.toolTip1.SetToolTip(this.pictureBox11, "О программе");
+            this.pictureBox11.Click += new System.EventHandler(this.оПрограммеToolStripMenuItem_Click);
             // 
             // splitContainer1
             // 
