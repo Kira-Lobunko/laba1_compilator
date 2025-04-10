@@ -91,7 +91,7 @@ namespace laba1_compilator
                             Advance();
                             break;
 
-                        case var c when char.IsLetter(c):
+                        case var c when char.IsLetter(c) && c >= 65 && c <= 122:
                             ReadIdentifierOrKeyword();
                             break;
 
@@ -153,26 +153,6 @@ namespace laba1_compilator
                     AddToken(TokenCode.Error, "недопустимый символ", lexeme, startPos, _linePos - 1, _line);
                     _expectIdentifier = false; // сбрасываем
                 }
-                //int startPos = _linePos;
-                //StringBuilder sb = new StringBuilder();
-                //sb.Append(CurrentChar());
-                //Advance();
-
-                //while (!IsEnd() && (char.IsLetterOrDigit(CurrentChar()) || CurrentChar() == '_'))
-                //{
-                //    sb.Append(CurrentChar());
-                //    Advance();
-                //}
-
-                //string lexeme = sb.ToString();
-                //if (_keywords.Contains(lexeme))
-                //{
-                //    AddToken(TokenCode.Keyword, "ключевое слово", lexeme, startPos, _linePos - 1, _line);
-                //}
-                //else
-                //{
-                //    AddToken(TokenCode.Identifier, "идентификатор", lexeme, startPos, _linePos - 1, _line);
-                //}
             }
 
             private void ReadInteger()
@@ -195,14 +175,14 @@ namespace laba1_compilator
             private void ReadStringLiteral()
             {
                 int startPos = _linePos;
-                Advance(); // пропускаем открывающую кавычку
+                Advance(); // Пропускаем открывающую кавычку
                 StringBuilder sb = new StringBuilder();
                 bool closed = false;
 
                 while (!IsEnd())
                 {
                     char ch = CurrentChar();
-                    if (ch == '"')
+                    if (ch == '"')  // Найдена закрывающая кавычка
                     {
                         closed = true;
                         Advance();
@@ -217,11 +197,20 @@ namespace laba1_compilator
 
                 if (closed)
                 {
+                    // Если строка корректно закрыта
                     AddToken(TokenCode.StringLiteral, "строковый литерал", sb.ToString(), startPos, _linePos - 1, _line);
                 }
                 else
                 {
+                    // Если строка не закрыта, помечаем все оставшееся как недопустимый символ
                     AddToken(TokenCode.Error, "незакрытая строка", sb.ToString(), startPos, _linePos - 1, _line);
+
+                    // Помечаем все символы до конца строки как недопустимые
+                    while (!IsEnd())
+                    {
+                        AddToken(TokenCode.Error, "недопустимый символ", CurrentChar().ToString(), _linePos, _linePos, _line);
+                        Advance();
+                    }
                 }
             }
 
@@ -245,15 +234,6 @@ namespace laba1_compilator
                     }
                     _pos++;
                     _linePos++;
-                
-
-                //if (CurrentChar() == '\n')
-                //{
-                //    _line++;
-                //    _linePos = 0;
-                //}
-                //_pos++;
-                //_linePos++;
             }
 
             private void AddToken(TokenCode code, string type, string lexeme)
@@ -293,13 +273,6 @@ namespace laba1_compilator
                     $"Строка: {token.Line}, с позиции {token.StartPos} по {token.EndPos} — {token.Type}: \"{token.Lexeme}\" (код {(int)token.Code})\n"
                 );
             }
-            //richTextBox2.Clear();
-            //foreach (var token in tokens)
-            //{
-            //    richTextBox2.AppendText(
-            //        $"[{token.Line}:{token.StartPos}-{token.EndPos}] Код: {(int)token.Code}, Тип: {token.Type}, Лексема: \"{token.Lexeme}\"\n"
-            //    );
-            //}
         }
 
 
@@ -427,10 +400,6 @@ namespace laba1_compilator
         // 🔹 Сохранение изменений перед выходом из программы
         private void выходToolStripMenuItem_Click(object sender, EventArgs e)
         {
-            //if (CheckForUnsavedChanges())
-            //{
-            //    Close();
-            //}
             Close();
         }
 
