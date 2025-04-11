@@ -52,6 +52,7 @@ namespace laba1_compilator
             private List<Token> _tokens;
             private HashSet<string> _keywords = new HashSet<string> { "const", "val" };
 
+            // Флаг, чтобы после ключевого слова ожидать идентификатор
             private bool _expectIdentifier = false;
 
             public Scanner()
@@ -79,22 +80,21 @@ namespace laba1_compilator
                             break;
 
                         case var c when char.IsWhiteSpace(c):
-                            // Здесь останется только пробел или табуляция
+                            // Если пробел – добавляем токен разделителя и идём дальше
                             if (c == ' ')
                             {
                                 AddToken(TokenCode.Separator, "разделитель", "(пробел)");
                             }
                             Advance();
                             break;
-                        case var c when char.IsWhiteSpace(c):
-                            AddToken(TokenCode.Separator, "разделитель", c == ' ' ? "(пробел)" : c.ToString());
-                            Advance();
+
+                        // Если символ – буква или символ подчёркивания,
+                        // считываем непрерывную последовательность (которая может быть смешанной)
+                        case var c when (char.IsLetter(c) || c == '_'):
+                            ReadMixedIdentifierOrError();
                             break;
 
-                        case var c when char.IsLetter(c) && c >= 65 && c <= 122:
-                            ReadIdentifierOrKeyword();
-                            break;
-
+                        // Если цифра – обрабатываем как целое число (идентификаторы не могут начинаться с цифры)
                         case var c when char.IsDigit(c):
                             ReadInteger();
                             break;
@@ -114,8 +114,15 @@ namespace laba1_compilator
                             break;
 
                         default:
-                            AddToken(TokenCode.Error, "недопустимый символ", ch.ToString());
-                            Advance();
+                            // Для остальных символов группируем подряд идущие недопустимые
+                            int startErrorPos = _linePos;
+                            StringBuilder errorSb = new StringBuilder();
+                            while (!IsEnd() && !IsValidTokenStart(CurrentChar()))
+                            {
+                                errorSb.Append(CurrentChar());
+                                Advance();
+                            }
+                            AddToken(TokenCode.Error, "недопустимый символ", errorSb.ToString(), startErrorPos, _linePos - 1, _line);
                             break;
                     }
                 }
@@ -123,36 +130,103 @@ namespace laba1_compilator
                 return _tokens;
             }
 
-            private void ReadIdentifierOrKeyword()
+            // Вспомогательный метод: является ли символ допустимым началом токена (для остальных случаев)
+            private bool IsValidTokenStart(char ch)
             {
-                int startPos = _linePos;
-                StringBuilder sb = new StringBuilder();
-                sb.Append(CurrentChar());
-                Advance();
+                if (ch == '\r' || ch == '\n')
+                    return true;
+                if (char.IsWhiteSpace(ch))
+                    return true;
+                // Допустимыми считаем английские буквы (в диапазоне A-Z, a-z), цифры, подчёркивание,
+                // а также символы, начинающие строку, оператор присваивания и конец оператора.
+                if ((ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z'))
+                    return true;
+                if (char.IsDigit(ch))
+                    return true;
+                if (ch == '_' || ch == '=' || ch == ';' || ch == '"')
+                    return true;
+                return false;
+            }
 
-                while (!IsEnd() && (char.IsLetterOrDigit(CurrentChar()) || CurrentChar() == '_'))
+            // Вспомогательный метод, проверяющий, относится ли символ к «словообразующим»
+            private bool IsWordChar(char ch)
+            {
+                return char.IsLetter(ch) || char.IsDigit(ch) || ch == '_';
+            }
+
+            // Вспомогательный метод, определяющий, является ли символ допустимым для идентификатора
+            // (т.е. английская буква, цифра или '_')
+            private bool IsAllowedIdentifierChar(char ch)
+            {
+                return (ch >= 'A' && ch <= 'Z') ||
+                       (ch >= 'a' && ch <= 'z') ||
+                       (ch >= '0' && ch <= '9') ||
+                       (ch == '_');
+            }
+
+            // Новый метод для считывания последовательности, состоящей из букв, цифр и '_'
+            // При этом последовательность делится на сегменты, где каждая группа либо состоит
+            // из допустимых (английских) символов, либо из недопустимых (например, русских)
+            private void ReadMixedIdentifierOrError()
+            {
+                // Запоминаем позицию начала всей последовательности
+                int tokenStartPos = _linePos;
+                StringBuilder wordSb = new StringBuilder();
+
+                // Считываем всю последовательность из буквы, цифры или '_'
+                while (!IsEnd() && IsWordChar(CurrentChar()))
                 {
-                    sb.Append(CurrentChar());
+                    wordSb.Append(CurrentChar());
                     Advance();
                 }
 
-                string lexeme = sb.ToString();
+                string word = wordSb.ToString();
+                int segmentStart = 0;
+                // Определяем тип первого символа
+                bool currentAllowed = IsAllowedIdentifierChar(word[0]);
 
-                if (_keywords.Contains(lexeme))
+                for (int i = 1; i < word.Length; i++)
                 {
-                    AddToken(TokenCode.Keyword, "ключевое слово", lexeme, startPos, _linePos - 1, _line);
-                    _expectIdentifier = true; // после ключевого слова ждём идентификатор
+                    bool allowed = IsAllowedIdentifierChar(word[i]);
+                    if (allowed != currentAllowed)
+                    {
+                        // Завершаем сегмент от segmentStart до i-1
+                        string segment = word.Substring(segmentStart, i - segmentStart);
+                        TokenCode code = currentAllowed ? TokenCode.Identifier : TokenCode.Error;
+                        string type = currentAllowed ? "идентификатор" : "недопустимый символ";
+                        // Если сегмент полностью совпадает с ключевым словом, меняем тип
+                        if (currentAllowed && _keywords.Contains(segment))
+                        {
+                            code = TokenCode.Keyword;
+                            type = "ключевое слово";
+                            _expectIdentifier = true; // после ключевого слова ждём идентификатор
+                        }
+                        else if (_expectIdentifier && currentAllowed)
+                        {
+                            // Если ожидался идентификатор, а получен корректный сегмент – сбрасываем флаг
+                            _expectIdentifier = false;
+                        }
+                        AddToken(code, type, segment, tokenStartPos + segmentStart, tokenStartPos + i - 1, _line);
+                        // Начинаем новый сегмент с текущего символа
+                        segmentStart = i;
+                        currentAllowed = allowed;
+                    }
                 }
-                else if (_expectIdentifier && Regex.IsMatch(lexeme, @"^[A-Za-z_][A-Za-z0-9_]*$"))
+                // Завершаем последний сегмент
+                string lastSegment = word.Substring(segmentStart);
+                TokenCode lastCode = currentAllowed ? TokenCode.Identifier : TokenCode.Error;
+                string lastType = currentAllowed ? "идентификатор" : "недопустимый символ";
+                if (currentAllowed && _keywords.Contains(lastSegment))
                 {
-                    AddToken(TokenCode.Identifier, "идентификатор", lexeme, startPos, _linePos - 1, _line);
-                    _expectIdentifier = false; // идентификатор получили — больше не ждём
+                    lastCode = TokenCode.Keyword;
+                    lastType = "ключевое слово";
+                    _expectIdentifier = true;
                 }
-                else
+                else if (_expectIdentifier && currentAllowed)
                 {
-                    AddToken(TokenCode.Error, "недопустимый символ", lexeme, startPos, _linePos - 1, _line);
-                    _expectIdentifier = false; // сбрасываем
+                    _expectIdentifier = false;
                 }
+                AddToken(lastCode, lastType, lastSegment, tokenStartPos + segmentStart, tokenStartPos + word.Length - 1, _line);
             }
 
             private void ReadInteger()
@@ -182,7 +256,7 @@ namespace laba1_compilator
                 while (!IsEnd())
                 {
                     char ch = CurrentChar();
-                    if (ch == '"')  // Найдена закрывающая кавычка
+                    if (ch == '"')
                     {
                         closed = true;
                         Advance();
@@ -197,15 +271,11 @@ namespace laba1_compilator
 
                 if (closed)
                 {
-                    // Если строка корректно закрыта
                     AddToken(TokenCode.StringLiteral, "строковый литерал", sb.ToString(), startPos, _linePos - 1, _line);
                 }
                 else
                 {
-                    // Если строка не закрыта, помечаем все оставшееся как недопустимый символ
                     AddToken(TokenCode.Error, "незакрытая строка", sb.ToString(), startPos, _linePos - 1, _line);
-
-                    // Помечаем все символы до конца строки как недопустимые
                     while (!IsEnd())
                     {
                         AddToken(TokenCode.Error, "недопустимый символ", CurrentChar().ToString(), _linePos, _linePos, _line);
@@ -226,14 +296,13 @@ namespace laba1_compilator
 
             private void Advance()
             {
-               
-                    if (CurrentChar() == '\n')
-                    {
-                        _line++;
-                        _linePos = 0;
-                    }
-                    _pos++;
-                    _linePos++;
+                if (CurrentChar() == '\n')
+                {
+                    _line++;
+                    _linePos = 0;
+                }
+                _pos++;
+                _linePos++;
             }
 
             private void AddToken(TokenCode code, string type, string lexeme)
