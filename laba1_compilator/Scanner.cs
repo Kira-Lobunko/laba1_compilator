@@ -1,9 +1,7 @@
 ﻿//using System;
 //using System.Collections.Generic;
-//using System.Linq;
 //using System.Text;
-//using System.Threading.Tasks;
-//using static laba1_compilator.Form1;
+//using static laba1_compilator.Form1;  // Для доступа к TokenCode и Token
 
 //namespace laba1_compilator
 //{
@@ -14,9 +12,11 @@
 //        private int _line;
 //        private int _linePos;
 //        private List<Token> _tokens;
-//        private HashSet<string> _keywords = new HashSet<string> { "const", "val" };
+//        private bool _errorOccurred;
+//        private string _errorMessage;
 
-//        private bool _expectIdentifier = false;
+//        public List<Token> Tokens => _tokens;
+//        public string ErrorMessage => _errorMessage;
 
 //        public Scanner()
 //        {
@@ -30,88 +30,192 @@
 //            _line = 1;
 //            _linePos = 1;
 //            _tokens.Clear();
+//            _errorOccurred = false;
+//            _errorMessage = null;
 
-//            while (!IsEnd())
-//            {
-//                char ch = CurrentChar();
+//            // 1) Первое ключевое слово: const
+//            ReadKeyword("const");
+//            if (_errorOccurred) return _tokens;
 
-//                switch (ch)
-//                {
-//                    case '\r':
-//                    case '\n':
-//                        Advance();
-//                        break;
+//            SkipAndAddSeparators();
 
-//                    case var c when char.IsWhiteSpace(c):
-//                        if (c == ' ')
-//                        {
-//                            AddToken(TokenCode.Separator, "разделитель", "(пробел)");
-//                        }
-//                        Advance();
-//                        break;
+//            // 2) Второе ключевое слово: val
+//            ReadKeyword("val");
+//            if (_errorOccurred) return _tokens;
 
-//                    case var c when (char.IsLetter(c) || c == '_'):
-//                        ReadMixedIdentifierOrError();
-//                        break;
+//            SkipAndAddSeparators();
 
-//                    case var c when char.IsDigit(c):
-//                        ReadInteger();
-//                        break;
+//            // 3) Идентификатор
+//            ReadIdentifier();
+//            if (_errorOccurred) return _tokens;
 
-//                    case '=':
-//                        AddToken(TokenCode.AssignOp, "оператор присваивания", "=");
-//                        Advance();
-//                        break;
+//            SkipAndAddSeparators();
 
-//                    case ';':
-//                        AddToken(TokenCode.EndOperator, "конец оператора", ";");
-//                        Advance();
-//                        break;
+//            // 4) Оператор присваивания =
+//            ReadAssignOp();
+//            if (_errorOccurred) return _tokens;
 
-//                    case '"':
-//                        ReadStringLiteral();
-//                        break;
+//            SkipAndAddSeparators();
 
-//                    default:
-//                        int startErrorPos = _linePos;
-//                        StringBuilder errorSb = new StringBuilder();
-//                        while (!IsEnd() && !IsValidTokenStart(CurrentChar()))
-//                        {
-//                            errorSb.Append(CurrentChar());
-//                            Advance();
-//                        }
-//                        AddToken(TokenCode.Error, "недопустимый символ", errorSb.ToString(), startErrorPos, _linePos - 1, _line);
-//                        break;
-//                }
-//            }
+//            // 5) Значение
+//            ReadValue();
+//            if (_errorOccurred) return _tokens;
 
+//            SkipAndAddSeparators();
+
+//            // 6) Конец оператора ;
+//            ReadEndOperator();
 //            return _tokens;
 //        }
 
-//        private bool IsEnd()
+//        private void ReadKeyword(string expected)
 //        {
-//            return _pos >= _text.Length;
-//        }
-
-//        private char CurrentChar()
-//        {
-//            return _pos < _text.Length ? _text[_pos] : '\0';
-//        }
-
-//        private void Advance()
-//        {
-//            if (CurrentChar() == '\n')
+//            int startPos = _linePos;
+//            var sb = new StringBuilder();
+//            while (!IsEnd() && char.IsLetter(CurrentChar))
 //            {
-//                _line++;
-//                _linePos = 0;
+//                sb.Append(CurrentChar);
+//                Advance();
 //            }
-//            _pos++;
-//            _linePos++;
+//            string word = sb.ToString();
+//            if (word == expected)
+//            {
+//                AddToken(TokenCode.Keyword, "ключевое слово", word, startPos, _linePos - 1, _line);
+//            }
+//            else
+//            {
+//                SetError($"Ожидалось ключевое слово {expected}");
+//            }
 //        }
 
-//        private void AddToken(TokenCode code, string type, string lexeme)
+//        private void ReadIdentifier()
 //        {
-//            AddToken(code, type, lexeme, _linePos, _linePos, _line);
+//            // Первый символ должен быть латинской буквой или '_'
+//            if (IsEnd() || !(IsLatinLetter(CurrentChar) || CurrentChar == '_'))
+//            {
+//                SetError("Ожидалось идентификатор");
+//                return;
+//            }
+
+//            int startPos = _linePos;
+//            var sb = new StringBuilder();
+
+//            // Считываем все корректные символы идентификатора
+//            while (!IsEnd() && IsAllowedIdentifierChar(CurrentChar))
+//            {
+//                sb.Append(CurrentChar);
+//                Advance();
+//            }
+
+//            // Добавляем токен из корректной части
+//            AddToken(TokenCode.Identifier, "идентификатор", sb.ToString(), startPos, _linePos - 1, _line);
+
+//            // Если следующий символ — любая буква или прочий недопустимый знак,
+//            // сразу сообщаем об ошибке без упоминания "в идентификаторе"
+//            if (!IsEnd() && !IsDelimiter(CurrentChar))
+//            {
+//                char bad = CurrentChar;
+//                SetError($"Недопустимый символ '{bad}'");
+//            }
+//        }
+
+//        private void ReadAssignOp()
+//        {
+//            if (IsEnd() || CurrentChar != '=')
+//            {
+//                SetError("Ожидался знак присваивания '='");
+//                return;
+//            }
+//            int pos = _linePos;
+//            AddToken(TokenCode.AssignOp, "оператор присваивания", "=", pos, pos, _line);
+//            Advance();
+//        }
+
+//        private void ReadValue()
+//        {
+//            if (IsEnd())
+//            {
+//                SetError("Ожидалось значение");
+//                return;
+//            }
+
+//            if (CurrentChar == '"')
+//            {
+//                int startPos = _linePos;
+//                Advance(); // пропустить кавычку
+//                var sb = new StringBuilder();
+//                while (!IsEnd() && CurrentChar != '"')
+//                {
+//                    sb.Append(CurrentChar);
+//                    Advance();
+//                }
+//                if (IsEnd())
+//                {
+//                    SetError("Ожидалась закрывающая кавычка '\"'");
+//                    return;
+//                }
+//                Advance(); // закрывающая кавычка
+//                AddToken(TokenCode.StringLiteral, "строковый литерал", sb.ToString(), startPos, _linePos - 1, _line);
+//            }
+//            else if (char.IsDigit(CurrentChar))
+//            {
+//                int startPos = _linePos;
+//                var sb = new StringBuilder();
+//                while (!IsEnd() && char.IsDigit(CurrentChar))
+//                {
+//                    sb.Append(CurrentChar);
+//                    Advance();
+//                }
+//                AddToken(TokenCode.Integer, "целое число", sb.ToString(), startPos, _linePos - 1, _line);
+//            }
+//            else if (char.IsLetter(CurrentChar))
+//            {
+//                SetError("Ожидалась открывающаяся кавычка");
+//            }
+//            else
+//            {
+//                SetError("Недопустимый символ внутри значения");
+//            }
+//        }
+
+//        private void ReadEndOperator()
+//        {
+//            if (IsEnd() || CurrentChar != ';')
+//            {
+//                SetError("Ожидался конец оператора ';'");
+//                return;
+//            }
+//            int pos = _linePos;
+//            AddToken(TokenCode.EndOperator, "конец оператора", ";", pos, pos, _line);
+//            Advance();
+//        }
+
+//        private void SkipAndAddSeparators()
+//        {
+//            while (!IsEnd() && char.IsWhiteSpace(CurrentChar))
+//            {
+//                if (CurrentChar == ' ')
+//                    AddToken(TokenCode.Separator, "разделитель", "(пробел)", _linePos, _linePos, _line);
+//                Advance();
+//            }
+//        }
+
+//        private bool IsLatinLetter(char ch)
+//            => (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z');
+
+//        private bool IsAllowedIdentifierChar(char ch)
+//            => IsLatinLetter(ch) || char.IsDigit(ch) || ch == '_';
+
+//        private bool IsDelimiter(char ch)
+//            => char.IsWhiteSpace(ch) || ch == '=' || ch == ';' || ch == '\0';
+
+//        private void SetError(string message)
+//        {
+//            if (!_errorOccurred)
+//            {
+//                _errorOccurred = true;
+//                _errorMessage = message;
+//            }
 //        }
 
 //        private void AddToken(TokenCode code, string type, string lexeme, int startPos, int endPos, int line)
@@ -127,126 +231,18 @@
 //            });
 //        }
 
-//        private bool IsValidTokenStart(char ch)
+//        private char CurrentChar => _pos < _text.Length ? _text[_pos] : '\0';
+//        private bool IsEnd() => _pos >= _text.Length;
+
+//        private void Advance()
 //        {
-//            return ch == '\r' || ch == '\n' || char.IsWhiteSpace(ch) || (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || char.IsDigit(ch) || ch == '_' || ch == '=' || ch == ';' || ch == '"';
-//        }
-
-//        private void ReadMixedIdentifierOrError()
-//        {
-//            int tokenStartPos = _linePos;
-//            StringBuilder wordSb = new StringBuilder();
-
-//            while (!IsEnd() && (char.IsLetter(CurrentChar()) || char.IsDigit(CurrentChar()) || CurrentChar() == '_'))
+//            if (CurrentChar == '\n')
 //            {
-//                wordSb.Append(CurrentChar());
-//                Advance();
+//                _line++;
+//                _linePos = 0;
 //            }
-
-//            string word = wordSb.ToString();
-//            int segmentStart = 0;
-//            bool currentAllowed = IsAllowedIdentifierChar(word[0]);
-
-//            for (int i = 1; i < word.Length; i++)
-//            {
-//                bool allowed = IsAllowedIdentifierChar(word[i]);
-//                if (allowed != currentAllowed)
-//                {
-//                    string segment = word.Substring(segmentStart, i - segmentStart);
-//                    TokenCode code = currentAllowed ? TokenCode.Identifier : TokenCode.Error;
-//                    string type = currentAllowed ? "идентификатор" : "недопустимый символ";
-
-//                    if (currentAllowed && _keywords.Contains(segment))
-//                    {
-//                        code = TokenCode.Keyword;
-//                        type = "ключевое слово";
-//                        _expectIdentifier = true;
-//                    }
-//                    else if (_expectIdentifier && currentAllowed)
-//                    {
-//                        _expectIdentifier = false;
-//                    }
-//                    AddToken(code, type, segment, tokenStartPos + segmentStart, tokenStartPos + i - 1, _line);
-
-//                    segmentStart = i;
-//                    currentAllowed = allowed;
-//                }
-//            }
-
-//            string lastSegment = word.Substring(segmentStart);
-//            TokenCode lastCode = currentAllowed ? TokenCode.Identifier : TokenCode.Error;
-//            string lastType = currentAllowed ? "идентификатор" : "недопустимый символ";
-//            if (currentAllowed && _keywords.Contains(lastSegment))
-//            {
-//                lastCode = TokenCode.Keyword;
-//                lastType = "ключевое слово";
-//                _expectIdentifier = true;
-//            }
-//            else if (_expectIdentifier && currentAllowed)
-//            {
-//                _expectIdentifier = false;
-//            }
-//            AddToken(lastCode, lastType, lastSegment, tokenStartPos + segmentStart, tokenStartPos + word.Length - 1, _line);
-//        }
-
-//        private void ReadInteger()
-//        {
-//            int startPos = _linePos;
-//            StringBuilder sb = new StringBuilder();
-//            sb.Append(CurrentChar());
-//            Advance();
-
-//            while (!IsEnd() && char.IsDigit(CurrentChar()))
-//            {
-//                sb.Append(CurrentChar());
-//                Advance();
-//            }
-
-//            string lexeme = sb.ToString();
-//            AddToken(TokenCode.Integer, "целое число", lexeme, startPos, _linePos - 1, _line);
-//        }
-
-//        private void ReadStringLiteral()
-//        {
-//            int startPos = _linePos;
-//            Advance();
-//            StringBuilder sb = new StringBuilder();
-//            bool closed = false;
-
-//            while (!IsEnd())
-//            {
-//                char ch = CurrentChar();
-//                if (ch == '"')
-//                {
-//                    closed = true;
-//                    Advance();
-//                    break;
-//                }
-//                else
-//                {
-//                    sb.Append(ch);
-//                    Advance();
-//                }
-//            }
-
-//            if (closed)
-//            {
-//                AddToken(TokenCode.StringLiteral, "строковый литерал", sb.ToString(), startPos, _linePos - 1, _line);
-//            }
-//            else
-//            {
-//                AddToken(TokenCode.Error, "незакрытая строка", sb.ToString(), startPos, _linePos - 1, _line);
-//                while (!IsEnd())
-//                {
-//                    AddToken(TokenCode.Error, "недопустимый символ", CurrentChar().ToString(), _linePos, _linePos, _line);
-//                    Advance();
-//                }
-//            }
-//        }
-
-//        private bool IsAllowedIdentifierChar(char ch)
-//        {
-//            return (ch >= 'A' && ch <= 'Z') || (ch >= 'a' && ch <= 'z') || (ch >= '0' && ch <= '9') || (ch == '_');
+//            _pos++;
+//            _linePos++;
 //        }
 //    }
 //}
