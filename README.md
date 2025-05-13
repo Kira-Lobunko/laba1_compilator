@@ -124,15 +124,15 @@ const val имя_константы = "значение_строки";
 
 1. Построить РВ для поиска открывающих HTML-тегов p, li, h3.
 
-![image](https://github.com/user-attachments/assets/b0d99ba2-907f-4bf8-8d7d-609f61a6819f)
+string htmlPattern = @"<\s*(p|li|h3)(\s+[^>]*?)?>";
 
 2. Построить РВ для проверки ISBN-13.
 
-![image](https://github.com/user-attachments/assets/d7b36389-fe63-41a5-aa28-8359aabf00a9)
+string isbnPattern = @"\b97[89](?:[-\s]?\d){10}\b(?![-\s]?\d)";
 
 3. Построить РВ, описывающее российские автомобильные номера.
 
-![image](https://github.com/user-attachments/assets/925be3b0-eb1d-4bdb-a2b1-d7e342aea4a6)
+string carPattern = @"\b[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}\b";
 
 Тестовые примеры поиска подстрок:
 
