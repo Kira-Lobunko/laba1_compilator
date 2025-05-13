@@ -105,6 +105,7 @@ const val имя_константы = "значение_строки";
 ![автоматный граф drawio](https://github.com/user-attachments/assets/27b7cc67-72b2-4986-ad7b-d367b425916e)
 
 Тестовые примеры:
+
 Пример 1:
 
 ![image](https://github.com/user-attachments/assets/d1c8b872-9338-47f0-83d6-d8d7307e7f78)
