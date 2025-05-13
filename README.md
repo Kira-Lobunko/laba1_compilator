@@ -119,3 +119,32 @@ const val имя_константы = "значение_строки";
 ![image](https://github.com/user-attachments/assets/c5b61664-b8fe-45e2-8199-9ba137a38bbe)
 
 ## 6 лабораторная.
+
+Решения задач:
+
+1. Построить РВ для поиска открывающих HTML-тегов p, li, h3.
+
+![image](https://github.com/user-attachments/assets/b0d99ba2-907f-4bf8-8d7d-609f61a6819f)
+
+2. Построить РВ для проверки ISBN-13.
+
+![image](https://github.com/user-attachments/assets/d7b36389-fe63-41a5-aa28-8359aabf00a9)
+
+3. Построить РВ, описывающее российские автомобильные номера.
+
+![image](https://github.com/user-attachments/assets/925be3b0-eb1d-4bdb-a2b1-d7e342aea4a6)
+
+Тестовые примеры поиска подстрок:
+
+Пример 1:
+
+![image](https://github.com/user-attachments/assets/8b89ac10-f9fb-4673-8fe6-75ca9ae7a4e3)
+
+Пример 2:
+
+![image](https://github.com/user-attachments/assets/6dbc115c-5b76-467a-ad07-980c02b78e09)
+
+Пример 3:
+
+![image](https://github.com/user-attachments/assets/871c8bdc-23c5-4315-b3a7-42fa377c58a5)
+
