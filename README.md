@@ -118,7 +118,7 @@ const val имя_константы = "значение_строки";
 
 ![image](https://github.com/user-attachments/assets/c5b61664-b8fe-45e2-8199-9ba137a38bbe)
 
-## 6 лабораторная.
+## 6 лабораторная работа.
 
 Решения задач:
 
