@@ -4,6 +4,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 using System.Windows.Forms;
 using System.Drawing;
+using static laba1_compilator.Form1;
 
 
 namespace laba1_compilator
@@ -16,26 +17,22 @@ namespace laba1_compilator
         public Form1()
         {
             InitializeComponent();
-
-            // Настраиваем колонки
-            dataGridView1.Columns.Clear();
-            dataGridView1.Columns.Add("Тип", "Тип");
-            dataGridView1.Columns.Add("Строка", "Строка");
-            dataGridView1.Columns.Add("Позиция", "Позиция");
-            dataGridView1.AllowUserToAddRows = false;
-            dataGridView1.ReadOnly = true;
         }
 
         public enum TokenCode
         {
-            Integer = 1,          // целое число
-            Identifier = 3,       // идентификатор
-            StringLiteral = 7,    // строковый литерал
-            AssignOp = 6,        // знак "="
-            Separator = 4,       // разделитель (пробел)
-            Keyword = 2,         // ключевые слова: const, val
-            EndOperator = 8,     // конец оператора ";"
-            Error = 99            // ошибка
+            Integer = 1,
+            Identifier = 2,
+            StringLiteral = 3,
+            AssignOp = 10,
+            Separator = 11,
+            PlusOp = 12,
+            MulOp = 13,
+            LParen = 14,
+            RParen = 15,
+            Keyword = 16,
+            EndOperator = 17,
+            Error = 99
         }
 
         public class Token
@@ -53,54 +50,25 @@ namespace laba1_compilator
             }
         }
 
-        private void HighlightAndFill(string pattern, string type)
-        {
-            // 1) очищаем грид
-            dataGridView1.Rows.Clear();
 
-            // 2) сбрасываем предыдущие подсветки
-            richTextBox1.SelectAll();
-            richTextBox1.SelectionBackColor = Color.White;
-            richTextBox1.DeselectAll();
-
-            // 3) ищем совпадения
-            var matches = Regex.Matches(richTextBox1.Text, pattern, RegexOptions.IgnoreCase);
-            foreach (Match m in matches)
-            {
-                // 4) добавляем строку в таблицу
-                dataGridView1.Rows.Add(type, m.Value, m.Index);
-
-                // 5) подсвечиваем в тексте
-                richTextBox1.Select(m.Index, m.Length);
-                richTextBox1.SelectionBackColor = Color.Yellow;
-            }
-            richTextBox1.DeselectAll();
-        }
-
-
-        // 1. HTML-теги <p>, <li>, <h3>
         private void pictureBox9_Click(object sender, EventArgs e)
         {
-            // ищем открывающие теги p, li, h3 (с любыми атрибутами)
-            string htmlPattern = @"<\s*(p|li|h3)(\s+[^>]*?)?>";
-            HighlightAndFill(htmlPattern, "HTML-тег");
-        }
+            // 1) Сканируем входной текст
+            string input = richTextBox1.Text;
+            var scanner = new Scanner();
+            List<Token> tokens = scanner.Scan(input);
 
-        // 2. ISBN-13
-        private void pictureBox12_Click(object sender, EventArgs e)
-        {
-            // ISBN-13: начинается с 978 или 979, дальше группы цифр, разделённых либо дефисом, либо пробелом, либо без
-            string isbnPattern = @"\b97[89][-\s]?(?:\d[-\s]?){10}\b";
-            HighlightAndFill(isbnPattern, "ISBN-13");
-        }
+            // 2) Парсим токены рекурсивным спуском
+            var parser = new Recurs(tokens);
+            List<string> trace = parser.Parse();
 
-        // 3. Российские автомобильные номера
-        private void pictureBox13_Click(object sender, EventArgs e)
-        {
-            // Формат: 1 буква, 3 цифры, 2 буквы, 2–3 цифры (код региона). 
-            // Буквы: А, В, Е, К, М, Н, О, Р, С, Т, У, Х
-            string carPattern = @"\b[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}\b";
-            HighlightAndFill(carPattern, "Росс. номер");
+            // 3) Выводим результат разбора по строкам
+            richTextBox2.Clear();
+            foreach (var step in trace)
+            {
+                richTextBox2.AppendText(step);
+                richTextBox2.AppendText(Environment.NewLine);
+            }
         }
 
 
