@@ -117,3 +117,34 @@ const val имя_константы = "значение_строки";
 Пример 3:
 
 ![image](https://github.com/user-attachments/assets/c5b61664-b8fe-45e2-8199-9ba137a38bbe)
+
+## 6 лабораторная работа.
+
+Решения задач:
+
+1. Построить РВ для поиска открывающих HTML-тегов p, li, h3.
+
+string htmlPattern = @"<\s*(p|li|h3)(\s+[^>]*?)?>";
+
+2. Построить РВ для проверки ISBN-13.
+
+string isbnPattern = @"\b97[89](?:[-\s]?\d){10}\b(?![-\s]?\d)";
+
+3. Построить РВ, описывающее российские автомобильные номера.
+
+string carPattern = @"\b[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ]{2}\d{2,3}\b";
+
+Тестовые примеры поиска подстрок:
+
+Пример 1:
+
+![image](https://github.com/user-attachments/assets/8b89ac10-f9fb-4673-8fe6-75ca9ae7a4e3)
+
+Пример 2:
+
+![image](https://github.com/user-attachments/assets/6dbc115c-5b76-467a-ad07-980c02b78e09)
+
+Пример 3:
+
+![image](https://github.com/user-attachments/assets/871c8bdc-23c5-4315-b3a7-42fa377c58a5)
+
