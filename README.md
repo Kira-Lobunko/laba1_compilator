@@ -148,3 +148,82 @@ string carPattern = @"\b[АВЕКМНОРСТУХ]\d{3}[АВЕКМНОРСТУХ
 
 ![image](https://github.com/user-attachments/assets/871c8bdc-23c5-4315-b3a7-42fa377c58a5)
 
+
+## 8 лабораторная работа.
+
+Грамматика:
+```
+G[begin-stmt]: 
+1. begin-stmt → begin stmt-list end  
+2. stmt-list → stmt | stmt ; stmt-list  
+3. stmt → begin-stmt | assg-stmt  
+4. assg-stmt → VAR := arith-expr  
+5. arith-expr → VAR | NUM | ( arith-expr ) | arith-expr + arith-expr | arith-expr * arith-expr
+
+
+VAR – переменная Б{Б|Ц}, Б – {a, b, c, ...z, A, B, …, Z}, NUM – {0, 1, 
+…, 9}, compare-op – ”==” | ”<” | ”<=” | ”>” | ”>=” | ”!=”
+```
+
+Язык:
+
+C#, Windows Forms (.NET Framework).
+
+
+Классификация грамматики:
+
+Контекстно-свободная грамматика (КС).
+
+Подходит для разбора методом LL(1) (рекурсивный спуск без левой рекурсии).
+
+
+Схема вызова функций:
+```
+ParseBeginStmt()
+├─ MatchLexeme("begin")
+├─ ParseStmtList()
+│  ├─ ParseStmt()
+│  │  ├─ (если Current=="begin")
+│  │  │   └─ ParseBeginStmt()
+│  │  └─ (иначе)
+│  │       └─ ParseAssgStmt()
+│  │           ├─ MatchIdentifier()       // VAR
+│  │           ├─ MatchLexeme(":=")
+│  │           └─ ParseArithExpr()
+│  │               ├─ ParseFactor()
+│  │               │   ├─ MatchIdentifier()    // VAR
+│  │               │   ├─ MatchNumber()        // NUM
+│  │               │   ├─ MatchLexeme("(")
+│  │               │   │    ├─ ParseArithExpr()
+│  │               │   │    └─ MatchLexeme(")")
+│  │               │   └─ Error("VAR|NUM|()")
+│  │               └─ ParseArithRest()
+│  │                   ├─ (если "+" или "*")
+│  │                   │    ├─ Add(op)
+│  │                   │    ├─ ParseFactor()
+│  │                   │    └─ ParseArithRest()
+│  │                   └─ (иначе)
+│  │                        └─ Add("ε")
+│  ├─ (если MatchLexeme(";"))
+│  │    └─ ParseStmtList()
+│  └─ (иначе)
+│       └─ Add("ε")
+└─ MatchLexeme("end")
+```
+
+
+Тестовые примеры:
+
+Пример 1:
+
+![image](https://github.com/user-attachments/assets/eaa91e8c-347c-45fb-ad95-37a9969973ca)
+
+
+Пример 2:
+
+![image](https://github.com/user-attachments/assets/37ef2cd8-0067-458d-a2b7-78823c430260)
+
+
+Пример 3:
+
+![image](https://github.com/user-attachments/assets/bda5bf70-3fe2-4ba8-af19-49e5af711691)
